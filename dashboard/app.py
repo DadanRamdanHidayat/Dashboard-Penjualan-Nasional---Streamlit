@@ -20,20 +20,39 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config  # noqa: E402
 
 # ------------------------------------------------------------------ gaya
-BIRU, MERAH, ABU, HIJAU = "#257de0", "#ec4647", "#b8b8b8", "#008a17"
+BIRU, MERAH, ABU, HIJAU = "#2563eb", "#e45757", "#94a3b8", "#159a78"
 SEMUA = "(Semua)"
 NAMA_HARI = {1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min"}
 TEMA = dict(template="plotly_white", margin=dict(l=10, r=10, t=50, b=10),
-            font=dict(family="Inter, Segoe UI, sans-serif", size=12),
-            hoverlabel=dict(bgcolor="white"))
+            font=dict(family="Inter, Segoe UI, sans-serif", size=12, color="#26344d"),
+            colorway=[BIRU, HIJAU, "#f2a541", MERAH, "#8067d8"],
+            paper_bgcolor="white", plot_bgcolor="white",
+            hoverlabel=dict(bgcolor="white", bordercolor="#dbe3ef", font_color="#26344d"),
+            xaxis=dict(gridcolor="#e8edf5", zerolinecolor="#d7dfeb"),
+            yaxis=dict(gridcolor="#e8edf5", zerolinecolor="#d7dfeb"))
 
 st.set_page_config(page_title="Dashboard Penjualan Nasional", page_icon="📊", layout="wide")
 st.markdown("""
 <style>
-div[data-testid="stMetric"] {background:#f6f8fc;border:1px solid #e1e6f0;border-radius:10px;padding:10px 14px;}
-div[data-testid="stMetricLabel"] p {font-size:0.85rem;color:#555;}
-div[data-testid="stMetricValue"] {font-size:1.55rem;}
-.block-container {padding-top:1.6rem;}
+.stApp {background:#f4f7fc;color:#26344d;}
+[data-testid="stHeader"] {background:rgba(244,247,252,0.92);}
+[data-testid="stSidebar"] {background:#edf2fa;border-right:1px solid #dfe6f1;}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {color:#46546b;}
+.block-container {padding-top:2rem;padding-bottom:2rem;max-width:1600px;}
+h1 {color:#172541;letter-spacing:-0.035em;font-weight:750;}
+h2, h3, h4 {color:#213453;}
+div[data-testid="stMetric"] {
+    background:#fff;border:1px solid #e0e7f1;border-top:3px solid #2563eb;
+    border-radius:14px;padding:14px 16px;box-shadow:0 3px 12px rgba(31,53,88,0.05);
+}
+div[data-testid="stMetricLabel"] p {font-size:0.82rem;color:#61708a;font-weight:600;}
+div[data-testid="stMetricValue"] {font-size:1.55rem;color:#1b2b49;}
+[data-testid="stPlotlyChart"] {background:#fff;border:1px solid #e5eaf2;border-radius:14px;
+    padding:8px 10px;box-shadow:0 3px 12px rgba(31,53,88,0.04);}
+[data-testid="stTabs"] button {color:#61708a;font-weight:600;}
+[data-testid="stTabs"] button[aria-selected="true"] {color:#1d4ed8;}
+[data-testid="stTabs"] [data-baseweb="tab-highlight"] {background-color:#2563eb;}
+[data-testid="stDataFrame"] {border:1px solid #e0e7f1;border-radius:12px;overflow:hidden;}
 </style>""", unsafe_allow_html=True)
 
 
@@ -131,30 +150,30 @@ def gambar(fig, tinggi=380, **kw):
 
 
 # ------------------------------------------------------------------ sidebar
-st.sidebar.title("🎛️ Filter")
+st.sidebar.title("🎛️ Filter data")
 f_prov = st.sidebar.selectbox("Provinsi", [SEMUA] + PROVINSI)
-f_kat = st.sidebar.selectbox("Kategori produk", [SEMUA] + KATEGORI)
-b_awal, b_akhir = st.sidebar.select_slider("Rentang bulan", options=BULAN, value=(BULAN[0], BULAN[-1]))
+f_kat = st.sidebar.selectbox("Kategori", [SEMUA] + KATEGORI)
+b_awal, b_akhir = st.sidebar.select_slider("Periode", options=BULAN, value=(BULAN[0], BULAN[-1]))
 i0, i1 = BULAN.index(b_awal), BULAN.index(b_akhir)
 bulan_aktif = BULAN[i0:i1 + 1]
 n_bln = len(bulan_aktif)
 bulan_lalu = BULAN[i0 - n_bln:i0] if i0 - n_bln >= 0 else []
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("**ℹ️ Sumber data**")
+st.sidebar.markdown("**ℹ️ Tentang data**")
 st.sidebar.caption(
     f"Tabel gold diperbarui: **{meta['diperbarui_pada']}**  \n"
     f"Spark {meta['spark']['spark_versi']} · master `{meta['spark']['master']}`  \n"
     f"{meta['baris_silver']:,} pesanan bersih → {sum(meta['baris_gold'].values()):,} baris gold")
-st.sidebar.caption("Pembanding KPI = periode sebelumnya dengan panjang yang sama "
-                   "(kosong bila periode sebelumnya di luar data).")
+st.sidebar.caption("Perubahan KPI dibandingkan periode sebelumnya dengan durasi yang sama. "
+                   "Nilai tidak ditampilkan jika periode pembanding tidak tersedia.")
 
 # ------------------------------------------------------------------ header + KPI
 lingkup = " · ".join(x for x in [f_prov if f_prov != SEMUA else "Nasional",
                                  f_kat if f_kat != SEMUA else "semua kategori",
                                  f"{b_awal} s.d. {b_akhir}"])
 st.title("📊 Dashboard Penjualan Nasional")
-st.caption(f"Lingkup: **{lingkup}** — data sintetis marketplace, diolah dengan Apache Spark")
+st.caption(f"Ruang lingkup: **{lingkup}** · Data sintetis marketplace yang diolah dengan Apache Spark")
 
 kini = ringkas(pilih_cube(f_prov, f_kat, bulan_aktif))
 lalu = ringkas(pilih_cube(f_prov, f_kat, bulan_lalu)) if bulan_lalu else None
@@ -163,16 +182,16 @@ L = (lambda k: lalu[k]) if lalu is not None else (lambda k: None)
 k = st.columns(6)
 k[0].metric("Omzet bersih", rp(kini.omzet), delta_pct(kini.omzet, L("omzet")))
 k[1].metric("Pesanan", f"{int(kini.pesanan):,}", delta_pct(kini.pesanan, L("pesanan")))
-k[2].metric("Nilai rata-rata (AOV)", rp(kini.aov), delta_pct(kini.aov, L("aov")))
-k[3].metric("Rata-rata lama kirim", f"{kini.rata2_kirim:.2f} hari",
+k[2].metric("Rata-rata per pesanan", rp(kini.aov), delta_pct(kini.aov, L("aov")))
+k[3].metric("Waktu kirim rata-rata", f"{kini.rata2_kirim:.2f} hari",
             delta_pct(kini.rata2_kirim, L("rata2_kirim")), delta_color="inverse")
 k[4].metric("Rating rata-rata", f"{kini.rata2_rating:.2f} / 5", delta_pct(kini.rata2_rating, L("rata2_rating")))
 k[5].metric("Tingkat batal", f"{kini.tingkat_batal:.1%}",
             delta_pct(kini.tingkat_batal, L("tingkat_batal")), delta_color="inverse")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Ringkasan & Tren", "🗺️ Wilayah (drill-down)",
-                                        "🚚 Logistik & Kepuasan", "🛒 Perilaku Pelanggan",
-                                        "⚙️ Pipeline & Kualitas Data"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Tren & ringkasan", "🗺️ Kinerja wilayah",
+                                        "🚚 Pengiriman & kepuasan", "🛒 Perilaku belanja",
+                                        "⚙️ Pipeline & mutu data"])
 
 # ================================================================== TAB 1
 with tab1:
@@ -187,7 +206,7 @@ with tab1:
             hovertemplate="<b>%{x}</b><br>Omzet: Rp%{y:,.1f} M<br>Pesanan: %{customdata[0]:,}"
                           "<br>AOV: Rp%{customdata[1]:,.0f}<extra></extra>"))
         fig.update_yaxes(title="Omzet (miliar Rp)", rangemode="tozero")
-        gambar(fig, title=f"Omzet bulanan — puncak pada {puncak}")
+        gambar(fig, title=f"Tren omzet bulanan · tertinggi pada {puncak}")
     with c2:
         kat_d = ringkas(pilih_cube(f_prov, f_kat, bulan_aktif, per="kategori"), by="kategori") \
             .sort_values("omzet")
@@ -198,7 +217,7 @@ with tab1:
             text=[f"{v:,.1f}" for v in kat_d.omzet / 1e9], textposition="outside",
             hovertemplate="<b>%{y}</b><br>Omzet: Rp%{x:,.1f} M<extra></extra>"))
         fig.update_xaxes(title="Omzet (miliar Rp)", range=[0, kat_d.omzet.max() / 1e9 * 1.18])
-        gambar(fig, title=f"{teratas} menyumbang omzet terbesar")
+        gambar(fig, title=f"Kategori dengan omzet tertinggi: {teratas}")
 
     # Deret waktu harian dengan MA7 (dihitung Spark dengan window function).
     kunci = f_prov if f_prov != SEMUA else "NASIONAL"
@@ -222,14 +241,14 @@ with tab1:
         fig.add_vrect(x0=a, x1=b, fillcolor=BIRU, opacity=0.07, line_width=0,
                       annotation_text="Ramadan", annotation_position="top left")
     fig.update_yaxes(title="Omzet (miliar Rp)")
-    gambar(fig, tinggi=360, title=f"Omzet harian — {kunci} (filter kategori tidak berlaku pada grafik ini)",
+    gambar(fig, tinggi=360, title=f"Pergerakan omzet harian · {kunci} (semua kategori)",
            legend=dict(orientation="h", y=1.02, x=1, xanchor="right", yanchor="bottom"),
            hovermode="x unified")
 
 # ================================================================== TAB 2
 with tab2:
-    st.caption("Pola *overview first, zoom and filter, details on demand*: klik kotak treemap "
-               "untuk masuk dari pulau → provinsi → kategori. (Sumber: `gold_rollup_wilayah`, periode penuh)")
+    st.caption("Pilih kotak pada treemap untuk menelusuri data dari pulau ke provinsi dan kategori. "
+               "Data mencakup seluruh periode.")
     r = rasio(G["gold_rollup_wilayah"])
     ids, labels, parents, nilai, warna, hover = [], [], [], [], [], []
     for _, x in r.iterrows():
@@ -247,11 +266,11 @@ with tab2:
                      f"<br>Lama kirim {x.rata2_kirim:.2f} hari<br>Rating {x.rata2_rating:.2f}")
     fig = go.Figure(go.Treemap(
         ids=ids, labels=labels, parents=parents, values=nilai, branchvalues="total",
-        marker=dict(colors=warna, colorscale=[[0, "#cfe2f8"], [0.5, "#f7d9b5"], [1, MERAH]],
+        marker=dict(colors=warna, colorscale=[[0, "#dbeafe"], [0.5, "#fef3c7"], [1, MERAH]],
                     colorbar=dict(title="Rata-rata<br>kirim (hari)")),
         customdata=hover, hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>",
         maxdepth=2, textinfo="label+percent root"))
-    gambar(fig, tinggi=460, title="Komposisi omzet menurut wilayah — warna = rata-rata lama kirim")
+    gambar(fig, tinggi=460, title="Komposisi omzet wilayah · warna menunjukkan waktu kirim rata-rata")
 
     c1, c2 = st.columns([3, 2])
     with c1:
@@ -267,13 +286,13 @@ with tab2:
                           "<br>Rating %{customdata[1]:.2f}<br>Pesanan %{customdata[2]:,}<extra></extra>"))
         fig.update_xaxes(title="Omzet (miliar Rp)")
         gambar(fig, tinggi=420,
-               title=f"Peringkat provinsi — merah = rata-rata kirim > {config.AMBANG_KIRIM_LAMBAT:.0f} hari")
+               title=f"Omzet tiap provinsi · merah menandai waktu kirim di atas {config.AMBANG_KIRIM_LAMBAT:.0f} hari")
     with c2:
         tabel = p.sort_values("omzet", ascending=False).assign(
             omzet_m=lambda d: d.omzet / 1e9, aov_rb=lambda d: d.aov / 1e3,
             batal_pct=lambda d: d.tingkat_batal * 100)[
             ["provinsi", "omzet_m", "pesanan", "aov_rb", "rata2_kirim", "rata2_rating", "batal_pct"]]
-        st.markdown("**Detail per provinsi** (*details on demand*)")
+        st.markdown("**Rincian per provinsi**")
         st.dataframe(
             tabel, hide_index=True, width="stretch", height=400,
             column_config={
@@ -300,14 +319,15 @@ with tab3:
             fig.add_trace(go.Box(
                 y=[x.provinsi], q1=[x.q1], median=[x["median"]], q3=[x.q3], lowerfence=[x.p05],
                 upperfence=[x.p95], mean=[x.rata2], orientation="h", name=x.provinsi,
-                fillcolor="#f9c9c9" if lambat else "#cfe2f8",
-                line=dict(color="#191919" if x.provinsi == f_prov else "#555", width=2 if x.provinsi == f_prov else 1),
+                fillcolor="#fee2e2" if lambat else "#dbeafe",
+                line=dict(color="#26344d" if x.provinsi == f_prov else "#64748b",
+                          width=2 if x.provinsi == f_prov else 1),
                 showlegend=False))
         fig.add_vline(x=config.AMBANG_KIRIM_LAMBAT, line_dash="dash", line_color=MERAH,
                       annotation_text="target 3 hari", annotation_position="bottom right",
                       annotation_font_color=MERAH)
-        fig.update_xaxes(title="Lama kirim (hari) — kumis = persentil 5 & 95")
-        gambar(fig, tinggi=430, title="Luar Jawa-Bali: lebih lama DAN lebih tidak pasti")
+        fig.update_xaxes(title="Waktu kirim (hari) · rentang persentil 5–95")
+        gambar(fig, tinggi=430, title="Sebaran waktu pengiriman per provinsi")
     with c2:
         kunci = f_prov if f_prov != SEMUA else "NASIONAL"
         hm = G["gold_heatmap_kirim_rating"]
@@ -318,7 +338,7 @@ with tab3:
             hovertemplate="Kirim %{x} hari · rating %{y}<br>%{customdata:,.0f} pesanan<extra></extra>"))
         fig.update_xaxes(title="Lama kirim (bin 0,5 hari)")
         fig.update_yaxes(title="Rating", dtick=1)
-        gambar(fig, tinggi=430, title=f"Heatmap seluruh data ({kunci}): rating turun saat kirim lama")
+        gambar(fig, tinggi=430, title=f"Hubungan waktu pengiriman dan rating · {kunci}")
 
     hm = G["gold_heatmap_kirim_rating"]
     hm = hm[hm.provinsi == (f_prov if f_prov != SEMUA else "NASIONAL")].copy()
@@ -334,7 +354,7 @@ with tab3:
                                    hovertemplate="%{x} hari → rating %{y:.2f}<br>n = %{customdata:,}<extra></extra>"))
         fig.update_yaxes(title="Rating rata-rata", range=[1, 5])
         fig.update_xaxes(title="Lama kirim (hari, dibulatkan)", dtick=1)
-        gambar(fig, tinggi=330, title="Setiap tambahan 1 hari kirim menurunkan rating ±0,35")
+        gambar(fig, tinggi=330, title="Perubahan rating berdasarkan waktu pengiriman")
     with c2:
         p = ringkas(pilih_cube(SEMUA, f_kat, bulan_aktif, per="provinsi"), by="provinsi") \
             .sort_values("pct_kirim_lambat")
@@ -344,7 +364,7 @@ with tab3:
             text=[f"{v:.1f}%" for v in p.pct_kirim_lambat * 100], textposition="outside",
             hovertemplate="%{y}: %{x:.1f}% pesanan > 3 hari<extra></extra>"))
         fig.update_xaxes(title="% pesanan dikirim > 3 hari", range=[0, max(p.pct_kirim_lambat * 100) * 1.2])
-        gambar(fig, tinggi=330, title="Porsi pesanan terlambat (> 3 hari) per provinsi")
+        gambar(fig, tinggi=330, title="Pesanan dengan waktu kirim di atas 3 hari")
 
 # ================================================================== TAB 4
 with tab4:
@@ -359,7 +379,7 @@ with tab4:
     fig.update_xaxes(title="Jam")
     puncak = jh.stack().idxmax()
     gambar(fig, tinggi=330,
-           title=f"Kapan pelanggan berbelanja? ({kunci}) — puncak {NAMA_HARI[puncak[0]]} pukul {puncak[1]:02d}.00")
+           title=f"Waktu belanja terpadat · {NAMA_HARI[puncak[0]]}, pukul {puncak[1]:02d}.00 ({kunci})")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -374,17 +394,17 @@ with tab4:
             text=[f"{v:.1f}%" for v in mb.batal], textposition="outside",
             customdata=mb.total, hovertemplate="%{y}: %{x:.1f}% batal<br>dari %{customdata:,} pesanan<extra></extra>"))
         fig.update_xaxes(title="Tingkat pembatalan (%)", range=[0, mb.batal.max() * 1.25])
-        gambar(fig, tinggi=340, title=f"{mb.metode_bayar.iloc[-1]} paling sering dibatalkan")
+        gambar(fig, tinggi=340, title=f"Tingkat pembatalan tertinggi: {mb.metode_bayar.iloc[-1]}")
     with c2:
         qn = G["gold_kuantil_nilai"].sort_values("median")
         fig = go.Figure()
         for _, x in qn.iterrows():
             fig.add_trace(go.Box(y=[x.kategori], q1=[x.q1 / 1e3], median=[x["median"] / 1e3], q3=[x.q3 / 1e3],
                                  lowerfence=[x.p05 / 1e3], upperfence=[x.p95 / 1e3], mean=[x.rata2 / 1e3],
-                                 orientation="h", fillcolor="#cfe2f8", line=dict(color="#555"),
+                                 orientation="h", fillcolor="#dbeafe", line=dict(color="#64748b"),
                                  showlegend=False, name=x.kategori))
         fig.update_xaxes(title="Nilai transaksi (ribu Rp, skala log)", type="log")
-        gambar(fig, tinggi=340, title="Sebaran nilai transaksi per kategori (P5–P95)")
+        gambar(fig, tinggi=340, title="Sebaran nilai transaksi tiap kategori (persentil 5–95)")
 
 # ================================================================== TAB 5
 with tab5:
@@ -421,7 +441,7 @@ with tab5:
 
     c1, c2 = st.columns([3, 2])
     with c1:
-        st.markdown("#### Laporan kualitas data (dari langkah silver)")
+        st.markdown("#### Ringkasan kualitas data (tahap silver)")
         st.dataframe(G["gold_data_quality"], hide_index=True, width="stretch",
                      column_config={"nilai": st.column_config.NumberColumn("Nilai", format="%d")})
     with c2:
@@ -431,7 +451,7 @@ with tab5:
                      color_discrete_sequence=[BIRU])
         gambar(fig, tinggi=250)
 
-    st.markdown("#### Unduh tabel gold (CSV untuk Excel / Power BI)")
+    st.markdown("#### Unduh data olahan (CSV untuk Excel atau Power BI)")
     kolom = st.columns(4)
     for i, (nama, n) in enumerate(meta["baris_gold"].items()):
         jalur = os.path.join(config.GOLD_DIR, "csv", f"{nama}.csv")
@@ -441,5 +461,5 @@ with tab5:
                                              mime="text/csv", width="stretch")
 
 st.markdown("---")
-st.caption(f"Sumber: tabel gold pipeline Spark BD-P09 (data sintetis) · diperbarui {meta['diperbarui_pada']} · "
-           f"periode Okt 2025 – Sep 2026 · Omzet = nilai bersih pesanan berstatus SELESAI setelah diskon.")
+st.caption(f"Sumber: data olahan pipeline Spark BD-P09 · diperbarui {meta['diperbarui_pada']} · "
+           f"periode Okt 2025–Sep 2026 · omzet dihitung dari nilai pesanan selesai setelah diskon.")
